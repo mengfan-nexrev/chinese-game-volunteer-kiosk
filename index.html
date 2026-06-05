@@ -273,61 +273,147 @@ html, body {
 /* ============================================================
    ZODIAC WHEEL
    ============================================================ */
-#zodiac .zodiac-layout {
+/* full-screen stage that centers the big wheel */
+.zodiac-stage {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4vw;
-  width: 100%;
   z-index: 2;
 }
 .wheel-wrap {
   position: relative;
-  width: 56vh;
-  height: 56vh;
-  max-width: 56vw;
-  max-height: 56vw;
+  width: min(68vh, 82vw);
+  height: min(68vh, 82vw);
+  margin-bottom: 9vh;          /* lift the wheel above the bottom controls */
+  animation: wheelBreathe 3.6s ease-in-out infinite;   /* gentle "I'm alive" breathing */
+}
+@keyframes wheelBreathe {
+  0%,100% { transform: scale(1); }
+  50%     { transform: scale(1.025); }
 }
 .wheel-pointer {
   position: absolute;
-  top: -2vh;
+  top: -3vh;
   left: 50%;
-  transform: translateX(-50%);
-  font-size: 6vh;
+  font-size: 7vh;
   z-index: 10;
-  filter: drop-shadow(0 3px 3px rgba(0,0,0,.4));
+  filter: drop-shadow(0 4px 4px rgba(0,0,0,.4));
+  animation: pointerNudge 1.2s ease-in-out infinite;
+}
+@keyframes pointerNudge {
+  0%,100% { transform: translateX(-50%) translateY(0); }
+  50%     { transform: translateX(-50%) translateY(.7vh); }
 }
 #wheel {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  border: 1.4vh solid var(--gold);
-  box-shadow: 0 0 0 .8vh var(--deep-red), 0 1.5vh 3vh rgba(0,0,0,.4);
+  border: 1.6vh solid var(--gold);
+  box-shadow: 0 0 0 1vh var(--deep-red), 0 0 0 1.5vh #fff, 0 2vh 4vh rgba(0,0,0,.45);
   transition: transform 5s cubic-bezier(.17,.67,.2,1);  /* spin easing */
   background: #fff;
+  cursor: pointer;
 }
+#wheel g.lit path { animation: slicePulse 1s ease-in-out infinite; }
+@keyframes slicePulse { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.3); } }
 .wheel-center {
   position: absolute;
   top: 50%; left: 50%;
   transform: translate(-50%,-50%);
-  width: 14vh; height: 14vh;
-  max-width: 14vw; max-height: 14vw;
-  background: radial-gradient(circle, var(--gold), var(--deep-gold));
+  width: 18%; height: 18%;
+  background: radial-gradient(circle at 38% 32%, #fff, var(--gold) 60%, var(--deep-gold));
   border-radius: 50%;
-  border: .6vh solid #fff;
+  border: .7vh solid #fff;
   display: flex; align-items: center; justify-content: center;
-  font-size: 5vh;
+  font-size: 6vh;
   z-index: 5;
   box-shadow: 0 .6vh 1.5vh rgba(0,0,0,.35);
+  pointer-events: none;
 }
 
-.zodiac-panel {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.6vh;
-  min-width: 30vw;
+/* bottom controls + hint */
+.spin-hint {
+  position: absolute;
+  bottom: 14.5vh;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--deep-red);
+  background: var(--cream);
+  border: .3vh solid var(--gold);
+  padding: .8vh 2.5vw;
+  border-radius: 3vh;
+  font-size: 2.4vh;
+  font-weight: bold;
+  box-shadow: 0 .5vh 1vh rgba(0,0,0,.25);
+  animation: hintBob 1.6s ease-in-out infinite;
+  z-index: 6;
+  pointer-events: none;
+  white-space: nowrap;
 }
+@keyframes hintBob {
+  0%,100% { transform: translateX(-50%) translateY(0); }
+  50%     { transform: translateX(-50%) translateY(-1vh); }
+}
+.zodiac-controls {
+  position: absolute;
+  bottom: 4vh;
+  left: 0; right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 3vw;
+  z-index: 6;
+}
+.zodiac-ctrl-btn {
+  background: linear-gradient(180deg, #fff7d6, var(--gold) 55%, var(--deep-gold));
+  color: var(--ink);
+  border: .6vh solid #fff;
+  border-radius: 4vh;
+  font-size: 3vh;
+  font-weight: bold;
+  padding: 1.6vh 3.5vw;
+  box-shadow: 0 1vh 0 #f0a8c0;
+  cursor: pointer;
+  text-align: center;
+  line-height: 1.1;
+}
+.zodiac-ctrl-btn:active { transform: translateY(.6vh); box-shadow: 0 .3vh 0 #f0a8c0; }
+
+/* birth-year popup modal */
+.year-modal {
+  position: absolute;
+  inset: 0;
+  background: rgba(40,0,0,.55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 210;
+}
+.year-modal.active { display: flex; animation: fadeIn .25s ease; }
+.year-modal-card {
+  background: linear-gradient(180deg, var(--cream), #ffe9b0);
+  border: 1vh solid var(--gold);
+  border-radius: 4vh;
+  padding: 3vh 3vw;
+  text-align: center;
+  box-shadow: 0 2vh 5vh rgba(0,0,0,.5);
+  animation: popIn .4s cubic-bezier(.2,1.6,.4,1);
+}
+.year-close {
+  margin-top: 1.6vh;
+  background: var(--deep-red);
+  color: #fff;
+  border: .4vh solid var(--gold);
+  border-radius: 3vh;
+  font-size: 2.6vh;
+  font-weight: bold;
+  padding: 1.2vh 4vw;
+  box-shadow: 0 .6vh 0 #6a0000;
+  cursor: pointer;
+}
+.year-close:active { transform: translateY(.3vh); box-shadow: 0 .2vh 0 #6a0000; }
 
 /* number pad */
 .numpad-card {
@@ -374,13 +460,26 @@ html, body {
 .num-key.wide { grid-column: span 1; background: linear-gradient(180deg,#ffd9d9,#ffb3b3); }
 
 .zodiac-result {
-  color: var(--gold);
-  font-size: 3.4vh;
+  position: absolute;
+  top: 2.5vh;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 64vw;
+  color: var(--deep-red);
+  background: var(--cream);
+  font-size: 3vh;
   font-weight: bold;
   text-align: center;
-  min-height: 5vh;
-  text-shadow: 0 .3vh 0 var(--deep-red);
+  padding: 1.2vh 3vw;
+  border-radius: 3vh;
+  border: .4vh solid var(--gold);
+  box-shadow: 0 .8vh 1.6vh rgba(0,0,0,.3);
+  z-index: 7;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s ease;
 }
+.zodiac-result.show { opacity: 1; animation: popIn .5s cubic-bezier(.2,1.6,.4,1); }
 
 .spin-btn {
   background: linear-gradient(180deg,#ff5a5a,#c1121f);
@@ -701,34 +800,46 @@ html, body {
   <!-- =========================== ZODIAC =========================== -->
   <section id="zodiac" class="screen">
     <button class="back-btn" data-go="home" data-say="Back home">🏠 Back home</button>
-    <div class="screen-title">Zodiac Wheel · 生肖转盘</div>
-    <div class="zodiac-layout">
+
+    <!-- floating result banner (appears after a birth year is entered) -->
+    <div class="zodiac-result" id="zodiacResult"></div>
+
+    <!-- full-screen spinning wheel -->
+    <div class="zodiac-stage">
       <div class="wheel-wrap">
         <div class="wheel-pointer">🔻</div>
         <svg id="wheel" viewBox="0 0 100 100"></svg>
-        <div class="wheel-center">🧧</div>
+        <div class="wheel-center" id="wheelCenter">🐼</div>
       </div>
-      <div class="zodiac-panel">
-        <div class="numpad-card">
-          <div class="numpad-label">Grown-ups: enter the birth year 👇<br>大人请输入出生年份</div>
-          <div class="year-display" id="yearDisplay"></div>
-          <div class="numpad-grid" id="numpad">
-            <button class="num-key" data-num="1">1</button>
-            <button class="num-key" data-num="2">2</button>
-            <button class="num-key" data-num="3">3</button>
-            <button class="num-key" data-num="4">4</button>
-            <button class="num-key" data-num="5">5</button>
-            <button class="num-key" data-num="6">6</button>
-            <button class="num-key" data-num="7">7</button>
-            <button class="num-key" data-num="8">8</button>
-            <button class="num-key" data-num="9">9</button>
-            <button class="num-key wide" data-act="clear">⌫</button>
-            <button class="num-key" data-num="0">0</button>
-            <button class="num-key wide" data-act="ok">✔</button>
-          </div>
+    </div>
+
+    <!-- little hint + bottom controls -->
+    <div class="spin-hint" id="spinHint">👆 Tap a friend to hear it · 转一转！</div>
+    <div class="zodiac-controls">
+      <button class="zodiac-ctrl-btn" id="openYearBtn">🎂 Birth Year<br><small>输入生日</small></button>
+      <button class="spin-btn" id="spinBtn">Spin! 转！</button>
+    </div>
+
+    <!-- birth-year POPUP (number pad lives here so it doesn't crowd the wheel) -->
+    <div class="year-modal" id="yearModal">
+      <div class="year-modal-card">
+        <div class="numpad-label">Grown-ups: enter the birth year 👇<br>大人请输入出生年份</div>
+        <div class="year-display" id="yearDisplay"></div>
+        <div class="numpad-grid" id="numpad">
+          <button class="num-key" data-num="1">1</button>
+          <button class="num-key" data-num="2">2</button>
+          <button class="num-key" data-num="3">3</button>
+          <button class="num-key" data-num="4">4</button>
+          <button class="num-key" data-num="5">5</button>
+          <button class="num-key" data-num="6">6</button>
+          <button class="num-key" data-num="7">7</button>
+          <button class="num-key" data-num="8">8</button>
+          <button class="num-key" data-num="9">9</button>
+          <button class="num-key wide" data-act="clear">⌫</button>
+          <button class="num-key" data-num="0">0</button>
+          <button class="num-key wide" data-act="ok">✔</button>
         </div>
-        <div class="zodiac-result" id="zodiacResult"></div>
-        <button class="spin-btn" id="spinBtn" data-say="Spin!">Spin! 转！</button>
+        <button class="year-close" id="yearClose">Close ✕</button>
       </div>
     </div>
   </section>
@@ -1133,6 +1244,10 @@ let wheelAngle = 0;
 let spinning = false;
 
 // Build the SVG wheel (12 equal slices, 30° each).
+// Each slice is a <g data-slice> so the whole wedge (incl. the cute animal
+// badge) is one tap target. Softer coral+gold palette, white badge behind
+// each animal for a cuter, more "designed" look.
+const SLICE_COLORS = ["#ff5d73", "#ffd24d"];   // coral / warm gold, alternating
 function buildWheel() {
   const svg = document.getElementById("wheel");
   let parts = "";
@@ -1142,19 +1257,37 @@ function buildWheel() {
     const a1 = ((i + 1) * 30 - 90) * Math.PI / 180;
     const x0 = cx + r * Math.cos(a0), y0 = cy + r * Math.sin(a0);
     const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
-    const fill = (i % 2 === 0) ? "#c1121f" : "#ffd233";
-    parts += `<path d="M${cx},${cy} L${x0},${y0} A${r},${r} 0 0,1 ${x1},${y1} Z"
-                 fill="${fill}" stroke="#fff" stroke-width="0.5" data-slice="${i}"/>`;
-    // icon position
+    const fill = SLICE_COLORS[i % 2];
     const am = ((i + 0.5) * 30 - 90) * Math.PI / 180;
     const ix = cx + (r * 0.66) * Math.cos(am);
     const iy = cy + (r * 0.66) * Math.sin(am);
-    parts += `<text x="${ix}" y="${iy}" font-size="7" text-anchor="middle"
-                 dominant-baseline="central">${ZODIAC[i].icon}</text>`;
+    parts += `<g data-slice="${i}" style="cursor:pointer">
+        <path d="M${cx},${cy} L${x0},${y0} A${r},${r} 0 0,1 ${x1},${y1} Z"
+              fill="${fill}" stroke="#fff" stroke-width="0.7"/>
+        <circle cx="${ix}" cy="${iy}" r="6.4" fill="#fff" fill-opacity="0.92"/>
+        <text x="${ix}" y="${iy}" font-size="8.2" text-anchor="middle"
+              dominant-baseline="central">${ZODIAC[i].icon}</text>
+      </g>`;
   }
   svg.innerHTML = parts;
 }
 buildWheel();
+
+// Fun interaction: tap any animal on the wheel to hear its name (explore mode).
+document.getElementById("wheel").addEventListener("click", (e) => {
+  if (spinning) return;
+  const g = e.target.closest("g[data-slice]");
+  if (!g) return;
+  const i = +g.dataset.slice;
+  const z = ZODIAC[i];
+  sfx.pop();
+  speak(z.en + ". " + z.zh + ".");
+  const cxp = (typeof e.clientX === "number") ? e.clientX : innerWidth / 2;
+  const cyp = (typeof e.clientY === "number") ? e.clientY : innerHeight / 2;
+  spawnEmojiBurst(cxp, cyp, [z.icon, "⭐", "💖"], 8);
+  const center = document.getElementById("wheelCenter");
+  if (center) center.textContent = z.icon;   // show the tapped friend in the hub
+});
 
 function computeZodiac(year) {
   return (year + 8) % 12;   // 2020 -> 0 (Rat)
@@ -1164,9 +1297,44 @@ function resetZodiac() {
   enteredYear = "";
   childZodiacIndex = null;
   document.getElementById("yearDisplay").textContent = "";
-  document.getElementById("zodiacResult").textContent = "";
+  const res = document.getElementById("zodiacResult");
+  res.textContent = ""; res.classList.remove("show");
   document.getElementById("spinBtn").disabled = false;
+  const center = document.getElementById("wheelCenter");
+  if (center) center.textContent = "🐼";
+  const sh = document.getElementById("spinHint");
+  if (sh) sh.style.display = "";
+  closeYearModal();
+  // clear any slice highlight
+  document.querySelectorAll("#wheel g[data-slice]").forEach(g => {
+    g.classList.remove("lit");
+    const p = g.querySelector("path");
+    if (p) { p.setAttribute("stroke", "#fff"); p.setAttribute("stroke-width", "0.7"); }
+  });
 }
+
+// ---- birth-year popup open/close ----
+function openYearModal() {
+  enteredYear = "";
+  document.getElementById("yearDisplay").textContent = "";
+  document.getElementById("yearModal").classList.add("active");
+  speak("Grown-ups, enter the birth year.");
+}
+function closeYearModal() {
+  document.getElementById("yearModal").classList.remove("active");
+}
+document.getElementById("openYearBtn").addEventListener("click", () => {
+  feedback(document.getElementById("openYearBtn"));
+  openYearModal();
+});
+document.getElementById("yearClose").addEventListener("click", () => {
+  feedback(document.getElementById("yearClose"));
+  closeYearModal();
+});
+// tap the dark backdrop to dismiss
+document.getElementById("yearModal").addEventListener("click", (e) => {
+  if (e.target.id === "yearModal") closeYearModal();
+});
 
 // number pad
 document.getElementById("numpad").addEventListener("click", (e) => {
@@ -1194,21 +1362,30 @@ function confirmYear() {
   childZodiacIndex = computeZodiac(y);
   enteredYear = "";   // discard the year — we keep only the zodiac index
   const z = ZODIAC[childZodiacIndex];
-  const msg = `You're the ${z.en}! ${z.zh}`;
-  document.getElementById("zodiacResult").textContent = `🎉 You're the ${z.en}! ${z.icon} ${z.zh}`;
+  const res = document.getElementById("zodiacResult");
+  res.textContent = `🎉 You're the ${z.en}! ${z.icon} ${z.zh}`;
+  res.classList.add("show");
+  const center = document.getElementById("wheelCenter");
+  if (center) center.textContent = z.icon;   // your animal sits in the hub
   highlightSlice(childZodiacIndex);
+  closeYearModal();
   speak("You're the " + z.en + "!");
   sfx.chime();
   burstConfetti(40);
 }
 
 function highlightSlice(i) {
-  document.querySelectorAll("#wheel path").forEach(p => {
-    p.setAttribute("stroke", "#fff");
-    p.setAttribute("stroke-width", "0.5");
+  document.querySelectorAll("#wheel g[data-slice]").forEach(g => {
+    g.classList.remove("lit");
+    const p = g.querySelector("path");
+    if (p) { p.setAttribute("stroke", "#fff"); p.setAttribute("stroke-width", "0.7"); }
   });
-  const slice = document.querySelector(`#wheel path[data-slice="${i}"]`);
-  if (slice) { slice.setAttribute("stroke", "#00e0ff"); slice.setAttribute("stroke-width", "1.6"); }
+  const g = document.querySelector(`#wheel g[data-slice="${i}"]`);
+  if (g) {
+    g.classList.add("lit");
+    const p = g.querySelector("path");
+    if (p) { p.setAttribute("stroke", "#00e0ff"); p.setAttribute("stroke-width", "2"); }
+  }
 }
 
 // Weighted random prize tier (used when NOT the child's own zodiac).
@@ -1230,6 +1407,8 @@ document.getElementById("spinBtn").addEventListener("click", () => {
 function spinTheWheel() {
   spinning = true;
   document.getElementById("spinBtn").disabled = true;
+  const sh = document.getElementById("spinHint");
+  if (sh) sh.style.display = "none";
   sfx.spin();
 
   const landIndex = Math.floor(Math.random() * 12);   // random landing slice
