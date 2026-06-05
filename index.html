@@ -843,21 +843,34 @@ let preferredZhVoice = null;   // Mandarin voice for "Learn Chinese" pronunciati
 const FEMALE_VOICE_NAMES = /(female|woman|samantha|karen|moira|tessa|victoria|fiona|susan|allison|ava|serena|zira|kathy|nicky|sandy|shelley|princess|google us english|google uk english female|catherine|zoe|joanna|salli|kimberly|amy|emma)/i;
 // Known FEMALE Mandarin voices (avoid male ones like Kangkang/Yunyang).
 const ZH_FEMALE_NAMES = /(huihui|yaoyao|tingting|sinji|meijia|xiaoxiao|xiaoyi|google 普通话|female)/i;
+// "Natural-sounding" / neural voices — far less robotic than the basic OS voices.
+// These exist on iOS ("Enhanced"/Siri), macOS, Chrome/Android (Google), Edge (Natural).
+const QUALITY_VOICE = /(siri|enhanced|premium|natural|neural|google)/i;
+
+// Pick the least-robotic match: prefer a high-quality voice within our preference
+// group, fall back gracefully so it still works on bare-bones devices.
+function bestVoice(list) {
+  return list.find(v => QUALITY_VOICE.test(v.name)) || list[0] || null;
+}
 function pickVoice() {
   const voices = window.speechSynthesis ? speechSynthesis.getVoices() : [];
   const en = voices.filter(v => /^en/i.test(v.lang));
+  const enFemale = en.filter(v => FEMALE_VOICE_NAMES.test(v.name));
+  const enUS = en.filter(v => /en[-_]US/i.test(v.lang));
   preferredVoice =
-    en.find(v => FEMALE_VOICE_NAMES.test(v.name)) ||      // female English first
-    voices.find(v => FEMALE_VOICE_NAMES.test(v.name)) ||  // any female voice
-    en.find(v => /en[-_]US/i.test(v.lang)) ||             // fall back to US English
-    en[0] || null;
+    bestVoice(enFemale) ||                 // best female English (e.g. Samantha Enhanced)
+    bestVoice(voices.filter(v => FEMALE_VOICE_NAMES.test(v.name))) || // any best female
+    bestVoice(enUS) ||                     // best US English
+    bestVoice(en) || null;                 // best English of any kind
 
-  // Mandarin (zh-CN / zh) voice — prefer a female one, else any Chinese voice.
+  // Mandarin (zh-CN / zh) voice — prefer a high-quality female one.
   const zh = voices.filter(v => /^zh\b|zh[-_]/i.test(v.lang));
+  const zhFemale = zh.filter(v => ZH_FEMALE_NAMES.test(v.name));
+  const zhCN = zh.filter(v => /CN/i.test(v.lang));
   preferredZhVoice =
-    zh.find(v => ZH_FEMALE_NAMES.test(v.name)) ||
-    zh.find(v => /CN/i.test(v.lang)) ||
-    zh[0] || null;
+    bestVoice(zhFemale) ||
+    bestVoice(zhCN) ||
+    bestVoice(zh) || null;
 }
 if (window.speechSynthesis) {
   pickVoice();
@@ -870,8 +883,8 @@ function speak(text) {
   try {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.rate = 0.9;
-    u.pitch = 1.3;      // cute, higher female pitch for little ones
+    u.rate = 0.95;
+    u.pitch = 1.1;      // gently warm — high pitch makes synth voices sound robotic
     u.volume = 1;
     if (preferredVoice) u.voice = preferredVoice;
     speechSynthesis.speak(u);
@@ -1584,12 +1597,12 @@ function speakWord(w) {
   try {
     speechSynthesis.cancel();
     const en = new SpeechSynthesisUtterance(w.en);
-    en.rate = 0.9; en.pitch = 1.3;
+    en.rate = 0.95; en.pitch = 1.1;
     if (preferredVoice) en.voice = preferredVoice;
     speechSynthesis.speak(en);
 
     const zh = new SpeechSynthesisUtterance(preferredZhVoice ? w.zh : w.pinyin);
-    zh.rate = 0.8; zh.pitch = 1.2;
+    zh.rate = 0.85; zh.pitch = 1.0;
     if (preferredZhVoice) { zh.voice = preferredZhVoice; zh.lang = "zh-CN"; }
     else if (preferredVoice) { zh.voice = preferredVoice; }
     speechSynthesis.speak(zh);   // queued after the English one
