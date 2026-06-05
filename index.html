@@ -312,7 +312,7 @@ html, body {
   border-radius: 50%;
   border: 1.6vh solid var(--gold);
   box-shadow: 0 0 0 1vh var(--deep-red), 0 0 0 1.5vh #fff, 0 2vh 4vh rgba(0,0,0,.45);
-  transition: transform 5s cubic-bezier(.17,.67,.2,1);  /* spin easing */
+  transition: transform 4.5s cubic-bezier(.12,.62,.18,1);  /* spin easing (match SPIN_DURATION_MS) */
   background: #fff;
   cursor: pointer;
 }
@@ -927,18 +927,18 @@ html, body {
    ============================================================================ */
 const IDLE_TIMEOUT_MS = 30000;   // <-- idle reset: return home after 30s untouched
 
-// PRIZE TIER WEIGHTS (used when the wheel does NOT land on the child's own zodiac).
-// Must describe relative likelihood; they are normalized automatically.
-//   Small  = 60%   (most common, little treat)
-//   Medium = 30%
-//   Great  = 10%   (rarest non-grand prize)
-const PRIZE_WEIGHTS = { small: 60, medium: 30, great: 10 };
+// EVERYONE WINS — no prize tiers. Every spin shows the same friendly prize.
+// Landing on your own zodiac (~1 in 12) just adds an extra "It's your year!"
+// celebration (bigger confetti + fanfare); it's not a bigger/"grand" prize.
 const PRIZE_INFO = {
-  grand:  { icon: "🏆", title: "GRAND PRIZE!", sub: "It's YOUR year! 本命年大奖！" },
-  great:  { icon: "🎁", title: "Great Prize!",  sub: "大奖！" },
-  medium: { icon: "🧸", title: "Medium Prize!", sub: "中奖啦！" },
-  small:  { icon: "🍬", title: "Small Prize!",  sub: "小礼物！" }
+  win:  { icon: "🎁", title: "You win a prize!", sub: "你赢啦！Nǐ yíng la!" },
+  year: { icon: "🎉", title: "It's your year!",  sub: "You win a prize! 你赢啦！" }
 };
+
+// SPIN FEEL — bump these to taste.
+const SPIN_ROUNDS_MIN = 7;       // minimum full rotations per spin
+const SPIN_ROUNDS_RAND = 3;      // plus 0..this extra rotations (randomized)
+const SPIN_DURATION_MS = 4500;   // must match the #wheel CSS transition duration
 
 /* ============================================================================
    AUDIO — Web Speech narration + tiny synthesized sound effects (Web Audio API)
@@ -1388,15 +1388,6 @@ function highlightSlice(i) {
   }
 }
 
-// Weighted random prize tier (used when NOT the child's own zodiac).
-function drawPrizeTier() {
-  const total = PRIZE_WEIGHTS.small + PRIZE_WEIGHTS.medium + PRIZE_WEIGHTS.great;
-  let r = Math.random() * total;
-  if ((r -= PRIZE_WEIGHTS.small) < 0) return "small";
-  if ((r -= PRIZE_WEIGHTS.medium) < 0) return "medium";
-  return "great";
-}
-
 document.getElementById("spinBtn").addEventListener("click", () => {
   if (spinning) return;
   feedback(document.getElementById("spinBtn"));
@@ -1412,11 +1403,17 @@ function spinTheWheel() {
   sfx.spin();
 
   const landIndex = Math.floor(Math.random() * 12);   // random landing slice
-  // Each slice spans 30°; pointer is at top (12 o'clock). Compute target rotation.
+  // Each slice spans 30°; the pointer is at top (12 o'clock). We want this slice
+  // centered under the pointer, i.e. the wheel's final orientation (mod 360) to be:
   const sliceCenter = landIndex * 30 + 15;
-  const spins = 5;                                     // full rotations for drama
-  const target = spins * 360 + (360 - sliceCenter);
-  wheelAngle = target;
+  const finalMod = (360 - sliceCenter) % 360;
+
+  // ACCUMULATE from the wheel's current angle so it always whirls forward several
+  // full turns (never just nudges, even on a second spin).
+  const rounds = SPIN_ROUNDS_MIN + Math.floor(Math.random() * (SPIN_ROUNDS_RAND + 1));
+  const currentMod = ((wheelAngle % 360) + 360) % 360;
+  const delta = ((finalMod - currentMod) + 360) % 360;
+  wheelAngle += rounds * 360 + delta;
   document.getElementById("wheel").style.transform = `rotate(${wheelAngle}deg)`;
 
   setTimeout(() => {
@@ -1425,25 +1422,25 @@ function spinTheWheel() {
     const z = ZODIAC[landIndex];
     speak("It landed on the " + z.en + "!");
 
-    // PRIZE LOGIC — everyone wins.
+    // EVERYONE WINS — same friendly prize every time. Landing on your own sign
+    // just adds an extra "It's your year!" flourish (not a bigger prize).
     const isOwn = (childZodiacIndex !== null && landIndex === childZodiacIndex);
-    const tier = isOwn ? "grand" : drawPrizeTier();
-    const info = PRIZE_INFO[tier];
+    const info = isOwn ? PRIZE_INFO.year : PRIZE_INFO.win;
 
-    if (tier === "grand") { sfx.fanfare(); burstConfetti(160, true); burstConfetti(160, true); }
-    else { sfx.pop(); burstConfetti(tier === "great" ? 120 : 70, tier === "great"); }
+    if (isOwn) { sfx.fanfare(); burstConfetti(160, true); burstConfetti(160, true); }
+    else { sfx.chime(); burstConfetti(110, true); }
 
     setTimeout(() => {
       showPopup({
         icon: info.icon,
-        title: (isOwn ? `${z.icon} ` : `${z.icon} `) + info.title,
-        sub: (isOwn ? `The ${z.en} is your sign! ` : `You got the ${z.en}! `) + info.sub,
-        grand: (tier === "grand"),
+        title: info.title,
+        sub: `${z.icon} You got the ${z.en}! ${info.sub}`,
+        grand: isOwn,
         onClose: () => { document.getElementById("spinBtn").disabled = false; }
       });
-      speak(info.title + " " + (isOwn ? "It's your year!" : ""));
+      speak(isOwn ? "It's your year! You win a prize!" : "You win a prize!");
     }, 700);
-  }, 5100);   // matches the 5s CSS spin transition + buffer
+  }, SPIN_DURATION_MS + 100);   // wait for the CSS spin to finish (+ small buffer)
 }
 
 /* ============================================================================
