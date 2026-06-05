@@ -888,16 +888,11 @@ function resetIdle() {
     goHome();
   }, IDLE_TIMEOUT_MS);
 }
-// little sparkle emojis that follow every tap, anywhere
-const TAP_SPARKLE = ["✨", "💖", "⭐", "🌸", "💛"];
+// NOTE: we deliberately do NOT spawn an emoji burst on every tap here.
+// Toddlers mash the screen, which stacked overlapping animations and glitched.
+// Celebratory bursts now only fire on real picture/map choices (one per round).
 ["pointerdown", "touchstart", "click"].forEach(ev =>
-  document.addEventListener(ev, (e) => {
-    unlockAudio();
-    resetIdle();
-    if (ev === "pointerdown" && typeof e.clientX === "number") {
-      spawnEmojiBurst(e.clientX, e.clientY, TAP_SPARKLE, 5);
-    }
-  }, { passive: true })
+  document.addEventListener(ev, () => { unlockAudio(); resetIdle(); }, { passive: true })
 );
 
 /* ============================================================================
@@ -928,6 +923,7 @@ addEventListener("resize", resizeCanvas); resizeCanvas();
 
 const CONFETTI_COLORS = ["#ffd233", "#ff5a5a", "#c1121f", "#fff6e0", "#ff9a3c", "#ffe066"];
 function burstConfetti(count = 80, big = false) {
+  if (particles.length > MAX_PARTICLES) return;   // cap to avoid overlap/glitch buildup
   const cx = innerWidth / 2, cy = innerHeight / 2;
   for (let i = 0; i < count; i++) {
     const a = Math.random() * Math.PI * 2;
@@ -945,8 +941,12 @@ function burstConfetti(count = 80, big = false) {
     });
   }
 }
+// Safety cap so rapid taps can't pile particles up into a glittery mess.
+const MAX_PARTICLES = 220;
+
 // Cute emoji "special effect" burst at a screen point (x,y in CSS pixels).
 function spawnEmojiBurst(x, y, emojis, count = 12) {
+  if (particles.length > MAX_PARTICLES) return;   // already busy — skip extra bursts
   for (let i = 0; i < count; i++) {
     const a = Math.random() * Math.PI * 2;
     const sp = Math.random() * 6 + 3;
