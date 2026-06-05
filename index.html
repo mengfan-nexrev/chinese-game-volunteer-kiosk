@@ -602,6 +602,46 @@ html, body {
 .arrow-btn:active { transform: translateY(.5vh); box-shadow: 0 .3vh 0 var(--deep-gold); }
 
 /* ============================================================
+   LEARN CHINESE flashcard
+   ============================================================ */
+#learn .word-card {
+  background: linear-gradient(180deg, #fff, var(--cream));
+  border: 1vh solid var(--gold);
+  border-radius: 5vh;
+  width: 60vw;
+  height: 62vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1vh;
+  padding-bottom: 7vh;          /* leave room for the tap hint at the bottom */
+  box-shadow: 0 1.5vh 3vh rgba(0,0,0,.4);
+  z-index: 2;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+#learn .word-card.flip { animation: cardFlip .5s ease; }
+@keyframes cardFlip {
+  0%   { transform: rotateY(0deg) scale(1); }
+  45%  { transform: rotateY(90deg) scale(.96); }
+  55%  { transform: rotateY(-90deg) scale(.96); }
+  100% { transform: rotateY(0deg) scale(1); }
+}
+#learn .word-emoji  { font-size: 22vh; line-height: 1; }
+#learn .word-en     { font-size: 6vh;  font-weight: bold; color: var(--deep-red); }
+#learn .word-zh     { font-size: 9vh;  font-weight: bold; color: var(--ink); letter-spacing: .5vw; }
+#learn .word-pinyin { font-size: 4.4vh; color: var(--deep-gold); font-style: italic; }
+#learn .word-tap-hint {
+  position: absolute;
+  bottom: 2vh;
+  font-size: 2.4vh;
+  color: var(--deep-red);
+  opacity: .7;
+}
+
+/* ============================================================
    CONFETTI / FIREWORKS canvas
    ============================================================ */
 #fx {
@@ -642,6 +682,9 @@ html, body {
       </button>
       <button class="big-btn" data-go="photos" data-say="Photos of China">
         <span class="emoji">📸</span><span>Photos of China<br><small>中国相册</small></span>
+      </button>
+      <button class="big-btn" data-go="learn" data-say="Learn Chinese words">
+        <span class="emoji">🗣️</span><span>Learn Chinese<br><small>学说中文</small></span>
       </button>
     </div>
     <!-- gentle floating kawaii decorations -->
@@ -736,6 +779,23 @@ html, body {
     </div>
   </section>
 
+  <!-- =========================== LEARN CHINESE =========================== -->
+  <section id="learn" class="screen">
+    <button class="back-btn" data-go="home" data-say="Back home">🏠 Back home</button>
+    <div class="screen-title">Learn Chinese · 学说中文</div>
+    <div class="photo-nav">
+      <button class="arrow-btn" id="wordPrev">‹</button>
+      <div class="word-card" id="wordCard">
+        <div class="word-emoji" id="wordEmoji">👋</div>
+        <div class="word-en" id="wordEn">Hello</div>
+        <div class="word-zh" id="wordZh">你好</div>
+        <div class="word-pinyin" id="wordPinyin">Nǐ hǎo</div>
+        <div class="word-tap-hint">👂 Tap to hear it · 点一点听一听</div>
+      </div>
+      <button class="arrow-btn" id="wordNext">›</button>
+    </div>
+  </section>
+
   <!-- =========================== POPUP =========================== -->
   <div class="popup-overlay" id="popup">
     <div class="popup-card" id="popupCard">
@@ -776,10 +836,13 @@ const PRIZE_INFO = {
 let audioCtx = null;
 let audioUnlocked = false;
 let preferredVoice = null;
+let preferredZhVoice = null;   // Mandarin voice for "Learn Chinese" pronunciation
 
 // Prefer a FEMALE English voice for the friendly narration.
 // We match on known female voice names across iOS / macOS / Windows / Android.
 const FEMALE_VOICE_NAMES = /(female|woman|samantha|karen|moira|tessa|victoria|fiona|susan|allison|ava|serena|zira|kathy|nicky|sandy|shelley|princess|google us english|google uk english female|catherine|zoe|joanna|salli|kimberly|amy|emma)/i;
+// Known FEMALE Mandarin voices (avoid male ones like Kangkang/Yunyang).
+const ZH_FEMALE_NAMES = /(huihui|yaoyao|tingting|sinji|meijia|xiaoxiao|xiaoyi|google 普通话|female)/i;
 function pickVoice() {
   const voices = window.speechSynthesis ? speechSynthesis.getVoices() : [];
   const en = voices.filter(v => /^en/i.test(v.lang));
@@ -788,6 +851,13 @@ function pickVoice() {
     voices.find(v => FEMALE_VOICE_NAMES.test(v.name)) ||  // any female voice
     en.find(v => /en[-_]US/i.test(v.lang)) ||             // fall back to US English
     en[0] || null;
+
+  // Mandarin (zh-CN / zh) voice — prefer a female one, else any Chinese voice.
+  const zh = voices.filter(v => /^zh\b|zh[-_]/i.test(v.lang));
+  preferredZhVoice =
+    zh.find(v => ZH_FEMALE_NAMES.test(v.name)) ||
+    zh.find(v => /CN/i.test(v.lang)) ||
+    zh[0] || null;
 }
 if (window.speechSynthesis) {
   pickVoice();
@@ -909,6 +979,7 @@ document.addEventListener("click", (e) => {
     setTimeout(() => showScreen(go), 120);
     if (go === "zodiac") resetZodiac();
     if (go === "photos") showPhoto(0);
+    if (go === "learn") showWord(0);
   }
 });
 
@@ -1475,6 +1546,77 @@ document.getElementById("photoNext").addEventListener("click", () => {
 document.querySelector("#photos .photo-frame").addEventListener("click", () => {
   feedback(document.querySelector("#photos .photo-frame"));
   speak(PHOTOS[photoIdx].say);
+});
+
+/* ============================================================================
+   LEARN CHINESE — flashcards of simple words. Flip with the arrows; tap the
+   card to hear it again. Each word is spoken in English, then in Mandarin
+   (using a zh-CN voice if the device has one; otherwise the pinyin is read).
+   Add/replace words freely — order is the flip order.
+   ============================================================================ */
+const WORDS = [
+  // greetings & polite words
+  { emoji: "👋", en: "Hello",      zh: "你好",   pinyin: "Nǐ hǎo" },
+  { emoji: "🙏", en: "Thank you",  zh: "谢谢",   pinyin: "Xièxie" },
+  { emoji: "😊", en: "You're welcome", zh: "不客气", pinyin: "Bú kèqi" },
+  { emoji: "👋", en: "Goodbye",    zh: "再见",   pinyin: "Zàijiàn" },
+  { emoji: "❤️", en: "I love you", zh: "我爱你", pinyin: "Wǒ ài nǐ" },
+  // food
+  { emoji: "🍎", en: "Apple",      zh: "苹果",   pinyin: "Píngguǒ" },
+  { emoji: "🍌", en: "Banana",     zh: "香蕉",   pinyin: "Xiāngjiāo" },
+  { emoji: "💧", en: "Water",      zh: "水",     pinyin: "Shuǐ" },
+  // body parts
+  { emoji: "👃", en: "Nose",       zh: "鼻子",   pinyin: "Bízi" },
+  { emoji: "👄", en: "Mouth",      zh: "嘴巴",   pinyin: "Zuǐba" },
+  { emoji: "👁️", en: "Eye",        zh: "眼睛",   pinyin: "Yǎnjing" },
+  { emoji: "👂", en: "Ear",        zh: "耳朵",   pinyin: "Ěrduo" },
+  { emoji: "✋", en: "Hand",       zh: "手",     pinyin: "Shǒu" },
+  // cute animals
+  { emoji: "🐼", en: "Panda",      zh: "熊猫",   pinyin: "Xióngmāo" },
+  { emoji: "🐱", en: "Cat",        zh: "猫",     pinyin: "Māo" },
+  { emoji: "🐶", en: "Dog",        zh: "狗",     pinyin: "Gǒu" }
+];
+let wordIdx = 0;
+
+// Speak the word in English, then in Mandarin (or pinyin if no zh voice).
+function speakWord(w) {
+  if (!window.speechSynthesis) return;
+  try {
+    speechSynthesis.cancel();
+    const en = new SpeechSynthesisUtterance(w.en);
+    en.rate = 0.9; en.pitch = 1.3;
+    if (preferredVoice) en.voice = preferredVoice;
+    speechSynthesis.speak(en);
+
+    const zh = new SpeechSynthesisUtterance(preferredZhVoice ? w.zh : w.pinyin);
+    zh.rate = 0.8; zh.pitch = 1.2;
+    if (preferredZhVoice) { zh.voice = preferredZhVoice; zh.lang = "zh-CN"; }
+    else if (preferredVoice) { zh.voice = preferredVoice; }
+    speechSynthesis.speak(zh);   // queued after the English one
+  } catch (e) {}
+}
+
+function showWord(i) {
+  wordIdx = (i + WORDS.length) % WORDS.length;
+  const w = WORDS[wordIdx];
+  document.getElementById("wordEmoji").textContent  = w.emoji;
+  document.getElementById("wordEn").textContent     = w.en;
+  document.getElementById("wordZh").textContent     = w.zh;
+  document.getElementById("wordPinyin").textContent = w.pinyin;
+  const card = document.getElementById("wordCard");
+  card.classList.remove("flip"); void card.offsetWidth; card.classList.add("flip");
+  speakWord(w);
+}
+document.getElementById("wordPrev").addEventListener("click", () => {
+  feedback(document.getElementById("wordPrev")); sfx.pop(); showWord(wordIdx - 1);
+});
+document.getElementById("wordNext").addEventListener("click", () => {
+  feedback(document.getElementById("wordNext")); sfx.pop(); showWord(wordIdx + 1);
+});
+// tap the card to hear the word again
+document.getElementById("wordCard").addEventListener("click", () => {
+  feedback(document.getElementById("wordCard"));
+  speakWord(WORDS[wordIdx]);
 });
 
 /* ============================================================================
