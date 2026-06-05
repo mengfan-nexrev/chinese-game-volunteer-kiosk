@@ -487,9 +487,66 @@ html, body {
   0%,100% { box-shadow: 0 1vh 2vh rgba(0,0,0,.3); }
   50% { box-shadow: 0 0 4vh 1.5vh var(--gold); transform: scale(1.08); }
 }
+/* playful staggered entrance for picture choices (no fill — keeps :active press working) */
+.choice { animation: choicePop .5s cubic-bezier(.2,1.7,.5,1); }
+@keyframes choicePop {
+  0%   { transform: scale(.2) rotate(-12deg); opacity: 0; }
+  70%  { transform: scale(1.12) rotate(4deg); }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+
 .progress-dots { display:flex; gap:1.2vw; margin-top:3vh; z-index:2; }
 .dot { width:2.4vh; height:2.4vh; border-radius:50%; background: rgba(255,255,255,.35); }
 .dot.done { background: var(--gold); }
+
+/* ============================================================
+   WORLD MAP round ("Where is China?")
+   ============================================================ */
+.map-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.6vh;
+  z-index: 2;
+  animation: choicePop .5s cubic-bezier(.2,1.5,.5,1) both;
+}
+.world-map {
+  width: 72vw;
+  max-width: 130vh;
+  height: 58vh;
+  background: #8fd6f2;
+  border: 1vh solid #fff;
+  border-radius: 4vh;
+  box-shadow: 0 1.4vh 3vh rgba(0,0,0,.35);
+}
+.world-map .land {
+  fill: #8ed98e;
+  stroke: #5fb55f;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+/* pulsing hint ring on China so kids can find it */
+.china-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pulseRing 1.4s ease-in-out infinite;
+}
+@keyframes pulseRing {
+  0%,100% { transform: scale(.7); opacity: 1; }
+  50%     { transform: scale(1.5); opacity: .25; }
+}
+.china-target.reveal .china-ring { stroke: #00e0ff; stroke-width: 3.4; }
+.china-target.reveal text { font-size: 22px; }
+.map-hint {
+  background: var(--cream);
+  color: var(--deep-red);
+  font-size: 2.8vh;
+  font-weight: bold;
+  padding: 1.2vh 3vw;
+  border-radius: 3vh;
+  border: .4vh solid var(--gold);
+  box-shadow: 0 .6vh 0 var(--deep-gold);
+}
 
 /* ============================================================
    PHOTO GALLERY
@@ -648,7 +705,10 @@ html, body {
         <span class="age-emoji">🧒</span><span>2–3</span>
       </button>
       <button class="big-btn" data-age="3" data-say="Three and up">
-        <span class="age-emoji">🎈</span><span>3+</span>
+        <span class="age-emoji">🎈</span><span>3–5</span>
+      </button>
+      <button class="big-btn" data-age="4" data-say="Five and up, big kids">
+        <span class="age-emoji">🌏</span><span>5+</span>
       </button>
     </div>
   </section>
@@ -828,8 +888,16 @@ function resetIdle() {
     goHome();
   }, IDLE_TIMEOUT_MS);
 }
+// little sparkle emojis that follow every tap, anywhere
+const TAP_SPARKLE = ["✨", "💖", "⭐", "🌸", "💛"];
 ["pointerdown", "touchstart", "click"].forEach(ev =>
-  document.addEventListener(ev, () => { unlockAudio(); resetIdle(); }, { passive: true })
+  document.addEventListener(ev, (e) => {
+    unlockAudio();
+    resetIdle();
+    if (ev === "pointerdown" && typeof e.clientX === "number") {
+      spawnEmojiBurst(e.clientX, e.clientY, TAP_SPARKLE, 5);
+    }
+  }, { passive: true })
 );
 
 /* ============================================================================
@@ -877,6 +945,25 @@ function burstConfetti(count = 80, big = false) {
     });
   }
 }
+// Cute emoji "special effect" burst at a screen point (x,y in CSS pixels).
+function spawnEmojiBurst(x, y, emojis, count = 12) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = Math.random() * 6 + 3;
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * sp,
+      vy: Math.sin(a) * sp - 3,
+      g: 0.16,
+      size: Math.random() * 16 + 20,
+      emoji: emojis[(Math.random() * emojis.length) | 0],
+      life: 1,
+      rot: (Math.random() - 0.5) * 1,
+      vr: (Math.random() - 0.5) * 0.25
+    });
+  }
+}
+
 function animateFx() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   particles = particles.filter(p => p.life > 0);
@@ -887,8 +974,15 @@ function animateFx() {
     ctx.globalAlpha = Math.max(0, p.life);
     ctx.translate(p.x, p.y);
     ctx.rotate(p.rot);
-    ctx.fillStyle = p.color;
-    ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+    if (p.emoji) {
+      ctx.font = p.size + "px serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(p.emoji, 0, 0);
+    } else {
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+    }
     ctx.restore();
   });
   requestAnimationFrame(animateFx);
@@ -1107,7 +1201,12 @@ const PIC = {
   redenv:  { icon: "🧧", en: "Red Envelope", zh: "红包" },
   fireworks:{icon: "🎆", en: "Fireworks", zh: "烟花" },
   tea:     { icon: "🍵", en: "Tea",     zh: "茶" },
-  mooncake:{ icon: "🥮", en: "Mooncake",zh: "月饼" }
+  mooncake:{ icon: "🥮", en: "Mooncake",zh: "月饼" },
+  // ----- panda-quiz extras -----
+  bamboo:  { icon: "🎋", en: "Bamboo",  zh: "竹子" },
+  pizza:   { icon: "🍕", en: "Pizza",   zh: "披萨" },
+  icecream:{ icon: "🍦", en: "Ice Cream", zh: "冰淇淋" },
+  cookie:  { icon: "🍪", en: "Cookie",  zh: "饼干" }
 };
 
 // Round generator per age group. Each round: {prompt, choices:[keys], answer:key}
@@ -1145,26 +1244,37 @@ function buildRounds(age) {
       const q = Math.random() < .5 ? `Where's the ${PIC[ans].en}?` : `Which one is the ${PIC[ans].en}?`;
       rounds.push({ prompt: `${q} ${PIC[ans].zh}`, choices: c, answer: ans });
     }
-  } else {
-    // 3+: 3-4 pictures, slightly richer prompts.
-    const richPrompts = [
-      a => `Which animal hops? 🐰`,
-      a => `Find something yummy to eat! 找好吃的！`,
-      a => `Which one do we light up at night? 🏮`,
-      a => `Find the ${PIC[a].en}! ${PIC[a].zh}`,
-      a => `Which one says "roar"? 🐯`
-    ];
-    // Curated answers so the "richer" prompts make sense.
+  } else if (age === 3) {
+    // 3-5: 3-4 pictures, richer prompts + a couple of cute PANDA quizzes.
     const themed = [
-      { ans: "rabbit", extra: ["dragon", "lantern", "panda"], q: "Which animal hops? 🐰 哪个会跳？" },
-      { ans: "dumpling", extra: ["wall", "lantern", "tiger"], q: "Find something yummy to eat! 找好吃的！" },
-      { ans: "lantern", extra: ["panda", "fish", "ox"], q: "Which one do we light up at night? 哪个晚上会亮？" },
-      { ans: "tiger", extra: ["fish", "mooncake", "tea"], q: 'Which one says "roar"? 哪个会吼？🐯' },
-      { ans: "fireworks", extra: ["tea", "redenv", "rabbit"], q: "Which one goes BOOM in the sky? 哪个在天上砰砰响？🎆" }
+      // 🐼 panda quizzes
+      { ans: "bamboo", extra: ["pizza", "icecream", "cookie"], q: "What do pandas eat? 🐼 熊猫吃什么？" },
+      { ans: "panda",  extra: ["tiger", "dragon", "rabbit"],   q: "Which one is the panda? 哪个是熊猫？" },
+      // other themed prompts
+      { ans: "rabbit", extra: ["dragon", "lantern", "panda"],  q: "Which animal hops? 🐰 哪个会跳？" },
+      { ans: "dumpling", extra: ["wall", "lantern", "tiger"],  q: "Find something yummy to eat! 找好吃的！" },
+      { ans: "fireworks", extra: ["tea", "redenv", "rabbit"],  q: "Which one goes BOOM in the sky? 哪个在天上砰砰响？🎆" }
     ];
     themed.forEach(t => {
       const choices = [t.ans, ...t.extra].sort(() => Math.random() - 0.5);
       rounds.push({ prompt: t.q, choices, answer: t.ans });
+    });
+  } else {
+    // 5+ BIG KIDS: panda quizzes, a landmark, then the WORLD-MAP "Where is China?" finale.
+    const themed = [
+      { ans: "bamboo", extra: ["pizza", "icecream", "cookie", "tea"], q: "What do pandas eat? 🐼 熊猫吃什么？" },
+      { ans: "panda",  extra: ["tiger", "dragon", "rabbit", "ox"],    q: "Which one is the panda? 哪个是熊猫？" },
+      { ans: "wall",   extra: ["lantern", "mooncake", "fireworks"],   q: "Which one is the Great Wall? 哪个是长城？" }
+    ];
+    themed.forEach(t => {
+      const choices = [t.ans, ...t.extra].sort(() => Math.random() - 0.5);
+      rounds.push({ prompt: t.q, choices, answer: t.ans });
+    });
+    // Grand finale: tap China on the world map.
+    rounds.push({
+      type: "map",
+      prompt: "Where is China? 🌏 中国在哪里？",
+      say: "Can you find China on the map? Tap the panda!"
     });
   }
   return rounds;
@@ -1200,20 +1310,77 @@ function renderRound() {
     dots.appendChild(d);
   });
 
-  // choices
+  // body
   const row = document.getElementById("choiceRow");
   row.innerHTML = "";
-  r.choices.forEach(key => {
-    const p = PIC[key];
-    const c = document.createElement("button");
-    c.className = "choice";
-    c.innerHTML = `<div>${p.icon}</div><div class="label">${p.en} · ${p.zh}</div>`;
-    c.addEventListener("click", () => onChoiceTap(c, key, r));
-    row.appendChild(c);
-  });
+
+  if (r.type === "map") {
+    renderMapRound(r, row);
+  } else {
+    // picture choices
+    r.choices.forEach((key, i) => {
+      const p = PIC[key];
+      const c = document.createElement("button");
+      c.className = "choice";
+      c.style.animationDelay = (i * 0.08) + "s";   // playful staggered pop-in
+      c.innerHTML = `<div>${p.icon}</div><div class="label">${p.en} · ${p.zh}</div>`;
+      c.addEventListener("click", () => onChoiceTap(c, key, r));
+      row.appendChild(c);
+    });
+  }
 
   // read the prompt aloud
-  speak(r.prompt.replace(/[^\p{L}\p{N}\s'!?]/gu, " "));
+  speak((r.say || r.prompt).replace(/[^\p{L}\p{N}\s'!?]/gu, " "));
+}
+
+/* ----- WORLD MAP round: "Where is China?" (everyone wins) -----
+   Cute simplified cartoon map. The China zone (data-china) is gently marked
+   with a pulsing ring + panda so kids can find it. ANY tap is celebrated;
+   tapping China gives the special effect. */
+function renderMapRound(round, row) {
+  const wrap = document.createElement("div");
+  wrap.className = "map-wrap";
+  wrap.innerHTML = `
+    <svg class="world-map" viewBox="0 0 360 180" preserveAspectRatio="xMidYMid meet">
+      <rect x="0" y="0" width="360" height="180" rx="14" fill="#8fd6f2"/>
+      <!-- continents (cute green blobs) -->
+      <path class="land" d="M55,30 Q40,46 50,66 Q60,86 95,80 Q120,70 115,45 Q110,28 85,26 Q68,25 55,30 Z"/>
+      <path class="land" d="M110,86 Q98,100 105,120 Q110,146 123,150 Q133,140 128,114 Q126,94 118,87 Q114,84 110,86 Z"/>
+      <path class="land" d="M178,60 Q164,80 175,106 Q183,130 199,129 Q216,120 212,94 Q210,70 197,63 Q187,57 178,60 Z"/>
+      <path class="land" d="M184,37 Q171,45 181,55 Q196,61 211,52 Q215,41 202,37 Q193,34 184,37 Z"/>
+      <path class="land" d="M216,46 Q208,34 236,31 Q272,24 302,35 Q332,43 326,63 Q319,84 286,83 Q255,86 234,72 Q219,63 216,46 Z"/>
+      <path class="land" d="M300,106 Q289,117 300,130 Q319,137 331,126 Q336,113 322,107 Q310,103 300,106 Z"/>
+      <!-- CHINA target -->
+      <g data-china="1" class="china-target" style="cursor:pointer">
+        <circle class="china-hit" cx="289" cy="58" r="24" fill="#ffffff" fill-opacity="0.001"/>
+        <circle class="china-ring" cx="289" cy="58" r="13" fill="none" stroke="#ff3b6b" stroke-width="2.4"/>
+        <text x="289" y="59" font-size="15" text-anchor="middle" dominant-baseline="central">🐼</text>
+      </g>
+    </svg>
+    <div class="map-hint">👆 Tap the panda to find China! 找中国 🐼</div>
+  `;
+  row.appendChild(wrap);
+
+  const svg = wrap.querySelector(".world-map");
+  svg.addEventListener("click", (e) => {
+    if (roundLocked) return;
+    roundLocked = true;
+    const correct = !!(e.target.closest("[data-china]"));
+    const x = (typeof e.clientX === "number") ? e.clientX : innerWidth / 2;
+    const y = (typeof e.clientY === "number") ? e.clientY : innerHeight / 2;
+    if (correct) {
+      spawnEmojiBurst(x, y, ["🎉", "⭐", "🐼", "💖", "🇨🇳"], 22);
+      sfx.chime(); burstConfetti(70);
+      speak("Yes! You found China! Hooray!");
+    } else {
+      // still a happy win — gently reveal where China is
+      spawnEmojiBurst(x, y, ["✨", "💛"], 10);
+      sfx.pop(); burstConfetti(30);
+      svg.querySelector(".china-target").classList.add("reveal");
+      speak("Look! China is right here, by the panda!");
+    }
+    setTimeout(nextRound, 1700);
+  });
 }
 
 function onChoiceTap(el, key, round) {
@@ -1223,8 +1390,13 @@ function onChoiceTap(el, key, round) {
   const p = PIC[key];
   speak(p.en);
 
+  // cute emoji burst right on the tapped picture
+  const r = el.getBoundingClientRect();
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+
   // ANY tap is celebrated. The "intended" picture gets extra sparkle.
   const isStar = (round.answer === null) || (key === round.answer);
+  spawnEmojiBurst(cx, cy, isStar ? ["⭐", "🎉", "💖", "🐼"] : ["✨", "💛"], isStar ? 16 : 9);
   if (isStar) {
     // extra sparkle for the intended (or, in sensory mode, whatever they tapped)
     const starEl = (round.answer === null)
