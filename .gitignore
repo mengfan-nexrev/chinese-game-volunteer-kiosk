@@ -1,0 +1,19 @@
+# Playwright / browser-test artifacts
+.playwright-mcp/
+
+# Test screenshots generated during local verification
+*.jpeg
+*.jpg
+*.png
+
+# Local HTTP server / tooling output
+*.log
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+.vscode/
+.idea/
